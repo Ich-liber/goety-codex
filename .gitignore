@@ -1,0 +1,26 @@
+# 密钥（绝不入库）
+.env
+
+# 原始数据（体积大，不纳入版本控制）
+raw/*.jar
+raw/**/*.html
+
+# 生成产物
+kb/*.jsonl
+kb/*.npy
+kb/vectors.json
+index/
+__pycache__/
+*.py[cod]
+
+# 依赖、模型缓存与临时目录
+.pylib/
+.tmp/
+.cache/
+.model_cache/
+.venv/
+venv/
+
+# 临时
+*.tmp
+*.log

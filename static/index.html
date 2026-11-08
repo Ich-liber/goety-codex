@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GOETY CODEX · 魂典问答</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<!--
+  design-intent: 沿用 GOETY ARCHIVE 的材质语言 —— MC GUI 的双层浮雕描边、0 圆角、
+  棋盘抖动底纹、文字 1px 右下投影；双色对冲：魂青=已采纳证据，邪紫=被召回的候选。
+  问答不是聊天软件，是"查阅魂典"：每轮提问 = 一次检索 + 一次召魂，答案附证据来源。
+-->
+<style>
+:root{
+  --void:#08080b; --stone:#26262d; --stone-2:#2f2f38;
+  --slot:#111116; --slot-2:#191920;
+  --hi:#585868; --lo:#0b0b0f; --line:#3a3a46;
+  --ink:#ececf3; --ink-2:#a6a6b8; --ink-3:#75758a;
+  --soul:#4fe0bd; --soul-ink:#0a2f28; --soul-soft:rgba(79,224,189,.12);
+  --mal:#a764e8; --mal-soft:rgba(167,100,232,.14);
+  --blood:#e05463; --gold:#e8b53f;
+  --px:"Press Start 2P","Courier New",monospace;
+  --side:212px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--void); color:var(--ink);
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  font-size:13px; line-height:1.62; text-shadow:1px 1px 0 rgba(0,0,0,.82);
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.030) 0 25%,transparent 0 50%,rgba(255,255,255,.030) 0 75%,transparent 0);
+  background-size:8px 8px;
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% -12%,rgba(120,70,190,.20),transparent 70%),
+    radial-gradient(ellipse 50% 40% at 88% 100%,rgba(40,180,155,.12),transparent 72%);
+}
+.num{font-family:var(--px);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#0c0c10}
+::-webkit-scrollbar-thumb{background:#2e2e38;border:2px solid #0c0c10}
+::-webkit-scrollbar-thumb:hover{background:#3d3d4a}
+
+.app{
+  position:relative;z-index:1;height:100vh;
+  display:grid;grid-template-columns:var(--side) minmax(0,1fr);
+  grid-template-rows:58px minmax(0,1fr) 26px;
+}
+
+/* ── 顶栏 ── */
+.top{
+  grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 18px;
+  background:#141419;border-bottom:2px solid #000;box-shadow:0 2px 0 #33333d;
+}
+.brand{display:flex;align-items:center;gap:11px;flex:none}
+.brand .mark{
+  width:32px;height:32px;background:linear-gradient(160deg,#3ad1b2,#1a6a5c);
+  border:2px solid #05120f;box-shadow:inset 2px 2px 0 #8ff7e2,inset -2px -2px 0 #083c33;
+  display:grid;place-items:center;
+}
+.brand .mark span{font-family:var(--px);font-size:12px;color:#04231d;text-shadow:none}
+.brand .name{font-family:var(--px);font-size:12px;letter-spacing:.02em;line-height:1.5}
+.brand .sub{display:block;font-family:"Microsoft YaHei",sans-serif;font-size:10.5px;color:var(--ink-3);letter-spacing:.06em;margin-top:2px}
+.askbar{
+  flex:1;display:flex;align-items:center;gap:10px;min-width:0;
+  background:var(--slot);border:2px solid #000;
+  box-shadow:inset 2px 2px 0 #101015,inset -2px -2px 0 #44444f;
+  padding:9px 13px;
+}
+.askbar .car{font-family:var(--px);font-size:11px;color:var(--soul);flex:none}
+.askbar .q{font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.askbar .cnt{font-family:var(--px);font-size:9px;color:var(--ink-3);flex:none}
+.top-acts{display:flex;gap:8px;flex:none}
+
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:8px 13px;background:#3b3b46;
+  border:2px solid #06060a;box-shadow:inset 2px 2px 0 #6d6d7c,inset -2px -2px 0 #17171e;
+  font-size:12px;color:var(--ink);white-space:nowrap;transition:background .1s,transform .06s;
+}
+.btn:hover{background:#474753}
+.btn:active{transform:translate(1px,1px);box-shadow:inset -2px -2px 0 #6d6d7c,inset 2px 2px 0 #17171e}
+.btn.pri{background:linear-gradient(#43d3b5,#249b84);color:#04231d;
+  box-shadow:inset 2px 2px 0 #a3f7e4,inset -2px -2px 0 #0d4f45;text-shadow:none;font-weight:700}
+.btn.pri:hover{background:linear-gradient(#55e0c4,#2aac93)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.ghost{background:transparent;box-shadow:none;border-color:transparent;color:var(--ink-3)}
+.btn.ghost:hover{color:var(--ink);background:#222229}
+
+/* ── 左栏 ── */
+.side{
+  grid-row:2;background:#141419;border-right:2px solid #000;box-shadow:2px 0 0 #33333d;
+  display:flex;flex-direction:column;padding:6px 9px 14px;gap:2px;overflow-y:auto;
+}
+.side .grp{font-family:var(--px);font-size:9px;color:var(--ink-3);padding:14px 9px 8px;letter-spacing:.08em}
+.stat{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:7px 9px;border-bottom:1px solid #202028;
+}
+.stat .lab{font-size:11.5px;color:var(--ink-2)}
+.stat .val{font-family:var(--px);font-size:11px;color:var(--soul)}
+.stat .val.sm{font-size:9.5px;color:var(--ink-2)}
+.field{
+  margin:5px 4px;background:var(--slot);border:2px solid #000;
+  box-shadow:inset 2px 2px 0 #0d0d11,inset -2px -2px 0 #45454f;
+  padding:7px 9px;display:flex;flex-direction:column;gap:6px;
+}
+.field .lb{font-family:var(--px);font-size:8px;color:var(--ink-3);letter-spacing:.06em}
+.seg{display:flex;border:2px solid #000;box-shadow:inset 1px 1px 0 #0c0c10;background:var(--slot)}
+.seg span{
+  flex:1;text-align:center;padding:5px 2px;font-size:11px;color:var(--ink-3);
+  cursor:pointer;user-select:none;transition:color .1s;
+}
+.seg span:hover{color:var(--ink)}
+.seg span.on{background:var(--mal);color:#160823;font-weight:700;text-shadow:none;
+  box-shadow:inset 2px 2px 0 #d8b4ff,inset -2px -2px 0 #52207a}
+.seg.soul span.on{background:var(--soul);color:#04231d;box-shadow:inset 2px 2px 0 #a3f7e4,inset -2px -2px 0 #0d4f45}
+
+.ex{
+  display:flex;gap:8px;padding:7px 9px;font-size:11.5px;color:var(--ink-2);
+  cursor:pointer;border:2px solid transparent;line-height:1.45;
+}
+.ex:hover{background:#1d1d24;color:var(--ink)}
+.ex::before{content:"▸";color:var(--mal);flex:none;font-size:10px;line-height:1.7}
+.side .foot{margin-top:auto;padding:14px 9px 4px;font-size:10px;color:var(--ink-3);line-height:1.8;border-top:1px solid #24242c}
+.side .foot b{color:var(--ink-2);font-weight:600}
+
+/* 历史会话 */
+.grp-row{display:flex;align-items:center;justify-content:space-between}
+.grp-row .add{
+  font-family:"Microsoft YaHei",sans-serif;font-size:14px;line-height:1;
+  color:var(--soul);cursor:pointer;padding:0 4px;letter-spacing:0;
+}
+.grp-row .add:hover{color:#a3f7e4}
+#sessions{max-height:212px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-bottom:2px}
+.sess{
+  display:flex;flex-direction:column;gap:1px;padding:7px 9px;cursor:pointer;
+  border:2px solid transparent;position:relative;
+}
+.sess:hover{background:#1d1d24}
+.sess.on{
+  background:var(--slot-2);border:2px solid #000;
+  box-shadow:inset 2px 2px 0 #3a4a48,inset -2px -2px 0 #0b0b0e;
+}
+.sess .t{
+  font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;padding-right:14px;line-height:1.4;
+}
+.sess.on .t{color:var(--soul);font-weight:600}
+.sess .m{font-family:var(--px);font-size:7.5px;color:var(--ink-3);letter-spacing:.02em}
+.sess .del{
+  position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  font-size:14px;line-height:1;color:var(--ink-3);opacity:0;padding:0 3px;cursor:pointer;
+}
+.sess:hover .del{opacity:.7}
+.sess .del:hover{color:var(--blood);opacity:1}
+.empty-sess{padding:9px;font-size:10.5px;color:var(--ink-3);line-height:1.7}
+
+/* ── 主区 ── */
+.main{grid-row:2;display:grid;grid-template-rows:minmax(0,1fr) auto;min-width:0}
+.stream{overflow-y:auto;padding:16px 20px 8px;scroll-behavior:smooth}
+.turn{max-width:960px;margin:0 auto 18px;display:grid;grid-template-columns:52px minmax(0,1fr);gap:11px}
+.role{
+  font-family:var(--px);font-size:8px;letter-spacing:.04em;padding-top:5px;
+  text-align:right;line-height:1.6;
+}
+.turn.user .role{color:var(--mal)}
+.turn.bot .role{color:var(--soul)}
+.panel{
+  border:2px solid #000;background:var(--slot);
+  box-shadow:inset 2px 2px 0 #101015,inset -2px -2px 0 #44444f;
+  border-left-width:3px;padding:12px 14px;
+}
+.turn.user .panel{border-left-color:var(--mal);background:var(--slot-2);color:var(--ink)}
+.turn.bot .panel{border-left-color:var(--soul)}
+.turn.bot.refused .panel{border-left-color:var(--blood)}
+.turn.bot.refused .role{color:var(--blood)}
+.answer{white-space:pre-wrap;word-break:break-word}
+.answer b{color:#fff}
+.answer code{
+  font-family:Consolas,monospace;font-size:12px;background:#000;padding:1px 5px;
+  color:var(--gold);text-shadow:none;border:1px solid #2a2a32;
+}
+.cite{
+  font-family:var(--px);font-size:8px;color:var(--soul-ink);background:var(--soul);
+  padding:1px 4px;margin:0 2px;vertical-align:super;cursor:pointer;
+  text-shadow:none;line-height:1;display:inline-block;
+}
+.cite:hover{background:#8ff7e2}
+.meta{
+  display:flex;flex-wrap:wrap;gap:12px;margin-top:11px;padding-top:9px;
+  border-top:1px dashed #2c2c36;font-family:var(--px);font-size:8px;color:var(--ink-3);
+  letter-spacing:.03em;
+}
+.meta b{color:var(--soul);font-weight:400}
+.srcs{margin-top:9px;display:none;flex-direction:column;gap:5px}
+.srcs.open{display:flex}
+.src{
+  display:flex;gap:9px;align-items:baseline;padding:6px 9px;background:#0d0d12;
+  border:2px solid #000;box-shadow:inset 2px 2px 0 #08080b,inset -2px -2px 0 #35353f;
+  font-size:11.5px;color:var(--ink-2);
+}
+.src.flash{border-color:var(--soul);background:var(--soul-soft)}
+.src .n{font-family:var(--px);font-size:8.5px;color:var(--soul);flex:none}
+.src .bc{flex:1;min-width:0}
+.src a{color:var(--mal);text-decoration:none;flex:none;font-size:12px}
+.src a:hover{color:#d8b4ff}
+.toggle-src{
+  margin-top:8px;font-family:var(--px);font-size:8px;color:var(--ink-3);
+  cursor:pointer;letter-spacing:.04em;
+}
+.toggle-src:hover{color:var(--soul)}
+
+/* 空状态 */
+.empty{
+  max-width:560px;margin:12vh auto 0;text-align:center;color:var(--ink-3);
+  display:flex;flex-direction:column;align-items:center;gap:18px;
+}
+.empty svg{filter:drop-shadow(0 0 14px rgba(79,224,189,.22))}
+.empty h2{font-family:var(--px);font-size:13px;color:var(--ink-2);line-height:2}
+.empty p{font-size:12.5px;line-height:1.9;max-width:420px}
+.empty .hint{font-family:var(--px);font-size:8.5px;color:var(--ink-3);letter-spacing:.05em}
+
+/* 输入区 */
+.composer{
+  border-top:2px solid #000;box-shadow:0 -2px 0 #33333d;background:#141419;
+  padding:13px 20px 15px;
+}
+.cwrap{max-width:960px;margin:0 auto;display:flex;gap:11px;align-items:flex-end}
+.cbox{
+  flex:1;display:flex;background:var(--slot);border:2px solid #000;
+  box-shadow:inset 2px 2px 0 #0d0d11,inset -2px -2px 0 #45454f;padding:9px 12px;
+}
+textarea{
+  flex:1;background:none;border:0;outline:0;resize:none;color:var(--ink);
+  font:inherit;font-size:13px;line-height:1.6;max-height:132px;min-height:22px;
+  text-shadow:1px 1px 0 rgba(0,0,0,.82);
+}
+textarea::placeholder{color:var(--ink-3)}
+.send{height:44px;padding:0 20px}
+
+/* 状态栏 */
+.statusbar{
+  grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 18px;
+  background:#0d0d12;border-top:2px solid #000;font-family:var(--px);font-size:8px;
+  color:var(--ink-3);letter-spacing:.04em;
+}
+.statusbar .dot{width:6px;height:6px;background:var(--soul);flex:none}
+.statusbar .dot.busy{background:var(--gold);animation:pulse 1s steps(2) infinite}
+@keyframes pulse{50%{opacity:.25}}
+.statusbar .sp{margin-left:auto}
+.statusbar b{color:var(--soul);font-weight:400}
+
+/* 打字光标 */
+.typing::after{
+  content:"▊";color:var(--soul);animation:blink .8s steps(2) infinite;
+  margin-left:1px;
+}
+@keyframes blink{50%{opacity:0}}
+
+@media (max-width:880px){
+  .app{grid-template-columns:1fr}
+  .side{display:none}
+  .turn{grid-template-columns:1fr}
+  .role{text-align:left}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark"><span>G</span></div>
+      <div>
+        <div class="name">GOETY CODEX</div>
+        <div class="sub">诡厄巫法 · 魂典问答</div>
+      </div>
+    </div>
+    <div class="askbar">
+      <span class="car">›</span>
+      <span class="q" id="topq">等待提问…</span>
+      <span class="cnt" id="topcnt">1.20.1</span>
+    </div>
+    <div class="top-acts">
+      <button class="btn ghost" id="btn-new-top">新会话</button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <div class="grp grp-row">SESSIONS<span class="add" id="btn-new" title="新建会话">＋</span></div>
+    <div id="sessions"></div>
+
+    <div class="grp">RETRIEVE</div>
+    <div class="field">
+      <span class="lb">MODE</span>
+      <div class="seg" id="seg-mode">
+        <span data-v="bm25">BM25</span><span data-v="vector">向量</span><span data-v="rrf">混合</span><span data-v="rerank" class="on">重排</span>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lb">TOP-K</span>
+      <div class="seg soul" id="seg-topk">
+        <span data-v="3">3</span><span data-v="4" class="on">4</span><span data-v="6">6</span><span data-v="8">8</span>
+      </div>
+    </div>
+
+    <div class="grp">PROMPTS</div>
+    <div id="examples"></div>
+
+    <div class="foot">
+      <b>片段</b> <span id="s-chunks">—</span>　<b>页面</b> <span id="s-pages">—</span><br>
+      <b>字数</b> <span id="s-chars">—</span><br>
+      <b>数据</b> MC百科 · Goety 2.5.60.6<br>
+      <b>版本</b> 仅 1.20.1 中文<br>
+      <b>生成</b> <span id="s-model">—</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="stream" id="stream">
+      <div class="empty" id="empty">
+        <svg width="88" height="88" viewBox="0 0 24 24" shape-rendering="crispEdges">
+          <rect x="6" y="18" width="12" height="3" fill="#2f2f38"/>
+          <rect x="7" y="15" width="10" height="3" fill="#26262d"/>
+          <rect x="8" y="12" width="8" height="3" fill="#2f2f38"/>
+          <rect x="10" y="9" width="4" height="3" fill="#4fe0bd"/>
+          <rect x="11" y="5" width="2" height="4" fill="#a764e8"/>
+          <rect x="10" y="4" width="4" height="1" fill="#4fe0bd"/>
+          <rect x="4" y="21" width="16" height="1" fill="#0b0b0f"/>
+        </svg>
+        <h2>魂典待启</h2>
+        <p>问一个关于诡厄巫法的问题。答案只从已收录的资料中召取，资料不足会直接告诉你——不会替你臆造。</p>
+        <span class="hint">ENTER 发送 · SHIFT+ENTER 换行</span>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="cwrap">
+        <div class="cbox">
+          <textarea id="input" rows="1" placeholder="例如：变成巫妖有啥好处 / 傀儡召不出来 / 祭坛怎么开"></textarea>
+        </div>
+        <button class="btn pri send" id="send">发送</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span class="dot" id="dot"></span>
+    <span id="st">IDLE</span>
+    <span class="sp"></span>
+    <span>CHUNKS <b id="st-chunks">—</b></span>
+    <span>TOKENS <b id="st-tok">0</b></span>
+    <span>LATENCY <b id="st-lat">—</b></span>
+  </footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $all = s => [...document.querySelectorAll(s)];
+
+const EXAMPLES = [
+  "变成巫妖有啥好处",
+  "那要怎么变呢",
+  "傀儡召不出来",
+  "祭坛怎么开",
+  "灵魂能量怎么攒",
+  "机械动力的齿轮怎么做",
+];
+const INTENT = {
+  concept: "概念", howto: "操作", troubleshoot: "排错",
+  variant: "变体", progress: "进度", multihop: "多跳", unknown: "询问",
+};
+
+let history = [];
+let busy = false;
+let mode = "rerank";
+let topk = 4;
+let msgSeq = 0;
+
+/* ── 会话存储（localStorage，无后端） ── */
+const SKEY = "goety_codex_sessions_v1";
+let sessions = [];
+let currentId = null;
+
+function loadSessions() {
+  try { sessions = JSON.parse(localStorage.getItem(SKEY) || "[]"); } catch { sessions = []; }
+  sessions = (sessions || []).filter(s => s && s.id && Array.isArray(s.turns));
+  sessions.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+function persist() {
+  try { localStorage.setItem(SKEY, JSON.stringify(sessions.slice(0, 40))); } catch {}
+}
+function curSession() { return sessions.find(s => s.id === currentId) || null; }
+function ago(ts) {
+  const d = (Date.now() - ts) / 1000;
+  if (!ts || d < 60) return "刚刚";
+  if (d < 3600) return Math.floor(d / 60) + " 分钟前";
+  if (d < 86400) return Math.floor(d / 3600) + " 小时前";
+  if (d < 604800) return Math.floor(d / 86400) + " 天前";
+  return new Date(ts).toLocaleDateString("zh-CN");
+}
+
+const EMPTY_SVG = `<svg width="88" height="88" viewBox="0 0 24 24" shape-rendering="crispEdges">
+  <rect x="6" y="18" width="12" height="3" fill="#2f2f38"/>
+  <rect x="7" y="15" width="10" height="3" fill="#26262d"/>
+  <rect x="8" y="12" width="8" height="3" fill="#2f2f38"/>
+  <rect x="10" y="9" width="4" height="3" fill="#4fe0bd"/>
+  <rect x="11" y="5" width="2" height="4" fill="#a764e8"/>
+  <rect x="10" y="4" width="4" height="1" fill="#4fe0bd"/>
+  <rect x="4" y="21" width="16" height="1" fill="#0b0b0f"/>
+</svg>`;
+
+function showEmpty(title, text) {
+  $("#stream").innerHTML =
+    `<div class="empty" id="empty">${EMPTY_SVG}
+      <h2>${esc(title || "魂典待启")}</h2>
+      <p>${esc(text || "问一个关于诡厄巫法的问题。答案只从已收录的资料中召取，资料不足会直接告诉你——不会替你臆造。")}</p>
+      <span class="hint">ENTER 发送 · SHIFT+ENTER 换行</span>
+    </div>`;
+}
+
+function renderSessions() {
+  const box = $("#sessions");
+  box.innerHTML = "";
+  if (!sessions.length) {
+    box.innerHTML = `<div class="empty-sess">还没有会话。<br>提第一个问题就会自动建档。</div>`;
+    return;
+  }
+  sessions.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "sess" + (s.id === currentId ? " on" : "");
+    const n = s.turns.filter(t => t.role === "user").length;
+    el.innerHTML =
+      `<div class="t">${esc(s.title || "未命名会话")}</div>
+       <div class="m">${n} 问 · ${ago(s.updatedAt)}</div>
+       <span class="del" title="删除">×</span>`;
+    el.onclick = e => {
+      if (e.target.classList.contains("del")) { delSession(s.id); return; }
+      openSession(s.id);
+    };
+    box.appendChild(el);
+  });
+}
+
+function newSession() {
+  if (busy) return;
+  currentId = null;
+  history = [];
+  showEmpty();
+  renderSessions();
+  $("#topq").textContent = "等待提问…";
+  $("#st-tok").textContent = "0";
+  $("#st-lat").textContent = "—";
+  input.value = "";
+  input.focus();
+}
+
+function delSession(id) {
+  if (busy) return;
+  if (!confirm("删除这个会话？不可恢复。")) return;
+  sessions = sessions.filter(s => s.id !== id);
+  persist();
+  if (currentId === id) newSession();
+  else renderSessions();
+}
+
+function openSession(id) {
+  if (busy) return;
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  currentId = id;
+  $("#stream").innerHTML = "";
+  if (!s.turns.length) {
+    showEmpty("空会话", "这个会话还没有内容。");
+  } else {
+    s.turns.forEach(t => renderTurn(t));
+    $("#topq").textContent = s.title || "";
+  }
+  history = s.turns.map(t => ({ role: t.role, content: t.content }));
+  renderSessions();
+  scrollBottom();
+}
+
+function renderTurn(t) {
+  if (t.role === "user") { addTurn("user", t.content); return; }
+  const { body, meta } = addTurn("bot", "");
+  finishTurn(body, meta, t.content, t.sources || [], {
+    intent: t.intent, hits: t.hits, usedCtx: t.usedCtx,
+    elapsed: t.elapsed, refused: t.refused,
+  });
+}
+
+/* ── 初始化 ── */
+loadSessions();
+renderSessions();
+
+EXAMPLES.forEach(q => {
+  const el = document.createElement("div");
+  el.className = "ex";
+  el.textContent = q;
+  el.onclick = () => { $("#input").value = q; send(); };
+  $("#examples").appendChild(el);
+});
+
+fetch("/api/meta").then(r => r.json()).then(m => {
+  $("#s-chunks").textContent = m.chunks;
+  $("#s-pages").textContent = m.pages;
+  $("#s-chars").textContent = (m.chars || 0).toLocaleString();
+  $("#s-model").textContent = m.model || "未配置";
+  $("#topcnt").textContent = "v" + m.version;
+  $("#st-chunks").textContent = m.chunks;
+}).catch(() => {});
+
+/* ── 参数 ── */
+function bindSeg(sel, cb) {
+  $all(sel + " span").forEach(sp => {
+    sp.onclick = () => {
+      $all(sel + " span").forEach(x => x.classList.remove("on"));
+      sp.classList.add("on");
+      cb(sp.dataset.v);
+    };
+  });
+}
+bindSeg("#seg-mode", v => { mode = v; });
+bindSeg("#seg-topk", v => { topk = +v; });
+
+/* ── 输入 ── */
+const input = $("#input");
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 132) + "px";
+});
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+$("#send").onclick = () => send();
+$("#btn-new").onclick = newSession;
+$("#btn-new-top").onclick = newSession;
+
+/* ── 发送 ── */
+async function send() {
+  const text = input.value.trim();
+  if (!text || busy) return;
+  busy = true;
+  setBusy(true);
+  $("#topq").textContent = text;
+  input.value = "";
+  input.style.height = "auto";
+
+  const empty = $("#empty");
+  if (empty) empty.remove();
+
+  // 没有当前会话就新建一份，标题取首个问题
+  let sess = curSession();
+  if (!sess) {
+    sess = { id: "s" + Date.now().toString(36), title: text.slice(0, 20), turns: [], updatedAt: Date.now() };
+    sessions.unshift(sess);
+    currentId = sess.id;
+  }
+
+  addTurn("user", text);
+
+  const id = ++msgSeq;
+  const { body, meta } = addTurn("bot", "");
+  body.classList.add("typing");
+  scrollBottom();
+
+  const payload = { question: text, history, mode, topk };
+  let acc = "";
+  let srcs = [];
+  let info = { intent: "", hits: 0, usedCtx: false, elapsed: null, refused: false };
+  let started = performance.now();
+
+  try {
+    await streamChat(payload, (ev, data) => {
+      if (ev === "meta") {
+        srcs = data.sources || [];
+        info.intent = data.intent || "";
+        info.hits = (data.hits || []).length;
+        info.usedCtx = !!data.used_ctx;
+      } else if (ev === "delta") {
+        acc += data.t;
+        body.textContent = acc;
+        $("#st-tok").textContent = Math.round(acc.length / 1.6);
+        scrollBottom(true);
+      } else if (ev === "error") {
+        acc += `\n[错误] ${data.msg}`;
+        body.textContent = acc;
+      } else if (ev === "done") {
+        info.elapsed = data.elapsed ?? +((performance.now() - started) / 1000).toFixed(1);
+        info.refused = !!data.refused;
+        $("#st-lat").textContent = info.elapsed + "s";
+        finishTurn(body, meta, acc, data.sources || srcs, info);
+      }
+    });
+  } catch (err) {
+    acc += `[请求失败] ${err.message}`;
+    body.textContent = acc;
+  } finally {
+    body.classList.remove("typing");
+    busy = false;
+    setBusy(false);
+
+    history.push({ role: "user", content: text });
+    history.push({ role: "assistant", content: acc });
+    if (history.length > 8) history = history.slice(-8);
+
+    if (acc) {
+      sess.turns.push({ role: "user", content: text });
+      sess.turns.push({
+        role: "assistant", content: acc, sources: srcs,
+        intent: info.intent, hits: info.hits, usedCtx: info.usedCtx,
+        elapsed: info.elapsed, refused: info.refused,
+      });
+      sess.updatedAt = Date.now();
+      if (!sess.title || sess.title === "未命名会话") sess.title = text.slice(0, 20);
+      persist();
+      renderSessions();
+    }
+  }
+}
+
+/* ── SSE ── */
+async function streamChat(payload, onEvent) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, i);
+      buf = buf.slice(i + 2);
+      const ev = parseEvent(chunk);
+      if (ev) onEvent(ev.event, ev.data);
+    }
+  }
+}
+function parseEvent(chunk) {
+  let event = "message", data = "";
+  for (const line of chunk.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) data += line.slice(5).trim();
+  }
+  if (!data) return null;
+  try { return { event, data: JSON.parse(data) }; } catch { return null; }
+}
+
+/* ── 渲染 ── */
+function addTurn(who, text) {
+  const wrap = document.createElement("div");
+  wrap.className = "turn " + who;
+  const role = document.createElement("div");
+  role.className = "role";
+  role.textContent = who === "user" ? "YOU" : "CODEX";
+  const panel = document.createElement("div");
+  panel.className = "panel";
+  const body = document.createElement("div");
+  body.className = "answer";
+  body.textContent = text;
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  panel.appendChild(body);
+  panel.appendChild(meta);
+  wrap.appendChild(role);
+  wrap.appendChild(panel);
+  $("#stream").appendChild(wrap);
+  return { wrap, body, meta, panel };
+}
+
+function finishTurn(body, meta, text, sources, info = {}) {
+  body.innerHTML = renderAnswer(text);
+  if (info.refused) body.closest(".turn").classList.add("refused");
+
+  const bits = [];
+  if (INTENT[info.intent]) bits.push(`意图 <b>${INTENT[info.intent]}</b>`);
+  bits.push(`证据 <b>${info.hits || 0}</b> 段${info.usedCtx ? " · 续上文" : ""}`);
+  if (info.elapsed) bits.push(`<b>${info.elapsed}</b>s`);
+  meta.innerHTML = bits.join("　·　");
+
+  if (sources.length) {
+    const toggle = document.createElement("div");
+    toggle.className = "toggle-src";
+    toggle.textContent = `▸ 展开 ${sources.length} 条来源`;
+    const box = document.createElement("div");
+    box.className = "srcs";
+    sources.forEach(s => {
+      const row = document.createElement("div");
+      row.className = "src";
+      row.dataset.n = s.n;
+      row.innerHTML = `<span class="n">[${s.n}]</span><span class="bc">${esc(s.breadcrumb)}</span>
+        <a href="${esc(s.url)}" target="_blank" rel="noopener">↗</a>`;
+      box.appendChild(row);
+    });
+    toggle.onclick = () => {
+      const open = box.classList.toggle("open");
+      toggle.textContent = (open ? "▾ 收起来源" : `▸ 展开 ${sources.length} 条来源`);
+    };
+    meta.after(toggle);
+    toggle.after(box);
+  }
+}
+
+function renderAnswer(text) {
+  let h = esc(text);
+  h = h.replace(/\[(\d+)\]/g, '<sup class="cite" data-n="$1">$1</sup>');
+  h = h.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  h = h.replace(/`([^`]+)`/g, "<code>$1</code>");
+  return h;
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function scrollBottom(soft) {
+  const s = $("#stream");
+  s.scrollTop = s.scrollHeight;
+}
+function setBusy(b) {
+  $("#send").disabled = b;
+  $("#dot").classList.toggle("busy", b);
+  $("#st").textContent = b ? "CASTING" : "IDLE";
+}
+
+/* 引用点击 → 高亮对应来源 */
+document.addEventListener("click", e => {
+  const c = e.target.closest(".cite");
+  if (!c) return;
+  const turn = c.closest(".turn");
+  const n = c.dataset.n;
+  const toggle = turn.querySelector(".toggle-src");
+  const box = turn.querySelector(".srcs");
+  if (!box) return;
+  box.classList.add("open");
+  if (toggle) toggle.textContent = "▾ 收起来源";
+  const row = box.querySelector(`.src[data-n="${n}"]`);
+  if (row) {
+    row.classList.add("flash");
+    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(() => row.classList.remove("flash"), 1600);
+  }
+});
+</script>
+</body>
+</html>
